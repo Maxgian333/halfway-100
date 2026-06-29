@@ -1,0 +1,85 @@
+@import url('https://fonts.googleapis.com/css2?family=Cormorant+Garamond:ital,wght@0,500;0,600;1,500&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap');
+
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+html, body {
+  background-color: #0E0F0C;
+  color: #E8E2D0;
+}
+
+body {
+  font-family: 'Inter', sans-serif;
+  background-image:
+    radial-gradient(circle at 50% 0%, rgba(201, 162, 39, 0.06), transparent 60%);
+}
+
+.font-display { font-family: 'Cormorant Garamond', serif; }
+.font-mono-num { font-family: 'JetBrains Mono', monospace; }
+
+.rule-gold {
+  height: 1px;
+  background: linear-gradient(90deg, transparent, #C9A227 50%, transparent);
+}
+
+.vow-row {
+  letter-spacing: 0.25em;
+  text-transform: uppercase;
+  font-size: 0.7rem;
+  color: #C9A227;
+}
+
+.card-ledger {
+  background: #16170F;
+  border: 1px solid rgba(201, 162, 39, 0.18);
+}
+
+.checkbox-seal {
+  width: 1.35rem;
+  height: 1.35rem;
+  border: 1.5px solid #9A9482;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  transition: all 0.2s ease;
+  cursor: pointer;
+  flex-shrink: 0;
+}
+
+.checkbox-seal.checked {
+  border-color: #C9A227;
+  background: radial-gradient(circle, #E3C462, #C9A227);
+  box-shadow: 0 0 10px rgba(201, 162, 39, 0.5);
+}
+
+.btn-primary {
+  background: linear-gradient(180deg, #E3C462, #C9A227);
+  color: #16170F;
+  font-weight: 600;
+  letter-spacing: 0.05em;
+  transition: filter 0.15s ease;
+}
+.btn-primary:hover { filter: brightness(1.08); }
+.btn-primary:disabled { opacity: 0.5; cursor: not-allowed; }
+
+.input-ledger {
+  background: #0E0F0C;
+  border: 1px solid rgba(154, 148, 130, 0.35);
+  color: #E8E2D0;
+}
+.input-ledger:focus {
+  outline: none;
+  border-color: #C9A227;
+}
+
+/* visible keyboard focus everywhere, per design floor */
+a:focus-visible, button:focus-visible, input:focus-visible {
+  outline: 2px solid #C9A227;
+  outline-offset: 2px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}
