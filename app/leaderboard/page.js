@@ -58,7 +58,12 @@ export default function LeaderboardPage() {
       {rows && rows.length > 0 && (
         <ol className="card-ledger rounded-md divide-y divide-gold/10">
           {rows.map((row, i) => {
-            const intensity = Math.min(row.streak / 100, 1);
+            const today = localDateString();
+            const calDay = row.challenge_start_date
+              ? Math.max(1, Math.floor((new Date(today) - new Date(row.challenge_start_date)) / 86400000) + 1)
+              : null;
+            const displayDay = calDay ?? row.streak;
+            const intensity = Math.min(displayDay / 100, 1);
             return (
               <li key={`${row.display_name}-${i}`} className="flex items-center gap-4 px-5 py-4">
                 <span className="font-mono-num text-muted text-sm w-6">
@@ -70,13 +75,16 @@ export default function LeaderboardPage() {
                   className="w-2 h-2 rounded-full"
                   style={{
                     background: `rgba(227, 196, 98, ${0.25 + intensity * 0.75})`,
-                    boxShadow: row.streak > 0
+                    boxShadow: displayDay > 0
                       ? `0 0 ${4 + intensity * 10}px rgba(201, 162, 39, ${0.3 + intensity * 0.6})`
                       : 'none',
                   }}
                 />
-                <span className="font-mono-num text-goldBright text-sm w-14 text-right">
-                  {row.streak}/100
+                <span className="font-mono-num text-goldBright text-sm text-right">
+                  {displayDay}/100
+                  {calDay !== null && (
+                    <span className="block text-muted text-xs">{row.streak} streak</span>
+                  )}
                 </span>
               </li>
             );

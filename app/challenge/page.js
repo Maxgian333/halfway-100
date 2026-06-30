@@ -15,6 +15,7 @@ export default function ChallengePage() {
   const [tasks, setTasks] = useState([]);
   const [checks, setChecks] = useState({});
   const [streak, setStreak] = useState(0);
+  const [challengeDay, setChallengeDay] = useState(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState('');
 
@@ -23,31 +24,29 @@ export default function ChallengePage() {
 
   const load = useCallback(async () => {
     const { data: { session } } = await supabase.auth.getSession();
-    if (!session) {
-      router.replace('/login');
-      return;
-    }
+    if (!session) { router.replace('/login'); return; }
     setUserId(session.user.id);
 
     const { data: profile, error: profileError } = await supabase
       .from('profiles')
-      .select('display_name, tasks')
+      .select('display_name, tasks, challenge_start_date')
       .eq('id', session.user.id)
       .maybeSingle();
 
-    if (profileError) {
-      setError(profileError.message);
-      setLoading(false);
-      return;
-    }
-
+    if (profileError) { setError(profileError.message); setLoading(false); return; }
     if (!profile || !profile.tasks || profile.tasks.length === 0) {
-      router.replace('/onboarding');
-      return;
+      router.replace('/onboarding'); return;
     }
 
     setDisplayName(profile.display_name);
     setTasks(profile.tasks);
+
+    if (profile.challenge_start_date) {
+      const diff = Math.floor(
+        (new Date(today) - new Date(profile.challenge_start_date)) / 86400000
+      );
+      setChallengeDay(Math.max(1, diff + 1));
+    }
 
     const { data: todayLog } = await supabase
       .from('daily_logs')
@@ -63,21 +62,16 @@ export default function ChallengePage() {
       p_today: today,
     });
     setStreak(streakValue ?? 0);
-
     setLoading(false);
   }, [router, today]);
 
-  useEffect(() => {
-    load();
-  }, [load]);
+  useEffect(() => { load(); }, [load]);
 
   async function toggleTask(taskId) {
     if (!userId) return;
     const nextChecks = { ...checks, [taskId]: !checks[taskId] };
     setChecks(nextChecks);
-
     const allComplete = tasks.every((t) => !!nextChecks[t.id]);
-
     setSaving(true);
     const { error: saveError } = await supabase.from('daily_logs').upsert({
       user_id: userId,
@@ -86,7 +80,6 @@ export default function ChallengePage() {
       all_complete: allComplete,
     }, { onConflict: 'user_id,log_date' });
     setSaving(false);
-
     if (saveError) setError(saveError.message);
   }
 
@@ -114,33 +107,49 @@ export default function ChallengePage() {
           <p className="text-muted text-xs mt-1">{displayName}</p>
         </div>
         <nav className="flex gap-4 text-xs uppercase tracking-widest2">
-          <Link href="/edit-habits" className="text-gold hover:text-goldBright">
-            Edit
-          </Link>
-          <Link href="/leaderboard" className="text-gold hover:text-goldBright">
-            Roll
-          </Link>
-          <button onClick={handleSignOut} className="text-muted hover:text-parchment">
-            Leave
-          </button>
+          <Link href="/edit-habits" className="text-gold hover:text-goldBright">Edit</Link>
+          <Link href="/leaderboard" className="text-gold hover:text-goldBright">Roll</Link>
+          <button onClick={handleSignOut} className="text-muted hover:text-parchment">Leave</button>
         </nav>
       </header>
 
       <section className="text-center mb-10">
-        <p className="text-muted text-xs uppercase tracking-widest2 mb-2">Day</p>
-        <p className="font-mono-num text-7xl text-goldBright leading-none">
-          {streak}<span className="text-3xl text-muted">/100</span>
-        </p>
-        <div className="w-full h-1.5 bg-inkRaised rounded-full mt-5 overflow-hidden">
-          <div
-            className="h-full bg-gradient-to-r from-gold to-goldBright rounded-full"
-            style={{ width: `${Math.min(streak, 100)}%` }}
-          />
-        </div>
-        {streak === 0 && (
-          <p className="text-muted text-xs mt-3 italic font-display">
-            The count starts the day every habit is kept, in full.
-          </p>
+        {/* Calendar day counter (manual start date) */}
+        {challengeDay !== null ? (
+          <>
+            <p className="text-muted text-xs uppercase tracking-widest2 mb-2">Day</p>
+            <p className="font-mono-num text-7xl text-goldBright leading-none">
+              {challengeDay}<span className="text-3xl text-muted">/100</span>
+            </p>
+            <div className="w-full h-1.5 bg-inkRaised rounded-full mt-5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-gold to-goldBright rounded-full"
+                style={{ width: `${Math.min(challengeDay, 100)}%` }}
+              />
+            </div>
+            {/* Streak shown below as a secondary metric */}
+            <p className="text-muted text-xs mt-3 font-mono-num">
+              {streak} day{streak !== 1 ? 's' : ''} clean streak
+            </p>
+          </>
+        ) : (
+          <>
+            <p className="text-muted text-xs uppercase tracking-widest2 mb-2">Clean streak</p>
+            <p className="font-mono-num text-7xl text-goldBright leading-none">
+              {streak}<span className="text-3xl text-muted">/100</span>
+            </p>
+            <div className="w-full h-1.5 bg-inkRaised rounded-full mt-5 overflow-hidden">
+              <div
+                className="h-full bg-gradient-to-r from-gold to-goldBright rounded-full"
+                style={{ width: `${Math.min(streak, 100)}%` }}
+              />
+            </div>
+            <p className="text-muted text-xs mt-3 italic font-display">
+              Set a start date in{' '}
+              <Link href="/edit-habits" className="text-gold underline">Edit</Link>
+              {' '}to track your day number.
+            </p>
+          </>
         )}
       </section>
 
@@ -153,11 +162,8 @@ export default function ChallengePage() {
       <section className="card-ledger rounded-md p-6">
         <div className="flex items-center justify-between mb-5">
           <h2 className="font-display text-xl text-parchment">Today</h2>
-          <span className="font-mono-num text-sm text-muted">
-            {checkedCount}/{tasks.length}
-          </span>
+          <span className="font-mono-num text-sm text-muted">{checkedCount}/{tasks.length}</span>
         </div>
-
         <ul className="space-y-3">
           {tasks.map((task) => (
             <li key={task.id} className="flex items-center gap-3">
@@ -174,7 +180,6 @@ export default function ChallengePage() {
             </li>
           ))}
         </ul>
-
         {allDone && (
           <p className="text-gold text-xs uppercase tracking-widest2 text-center mt-6">
             Day held. The count moves at midnight.
@@ -183,9 +188,8 @@ export default function ChallengePage() {
         {error && <p className="text-emberBright text-xs mt-4">{error}</p>}
       </section>
 
-      <p className="text-center text-muted text-xs mt-6 h-4">
-        {saving ? 'Saving…' : ''}
-      </p>
+      <p className="text-center text-muted text-xs mt-6 h-4">{saving ? 'Saving…' : ''}</p>
     </main>
   );
 }
+
