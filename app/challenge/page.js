@@ -103,7 +103,7 @@ export default function ChallengePage() {
     <main className="min-h-screen px-6 py-10 max-w-xl mx-auto">
       <header className="flex items-center justify-between mb-10">
         <div>
-          <p className="vow-row">Discipline · Sovereignty · Service</p>
+          <p className="vow-row">Discipline · Self Mastery · Service</p>
           <p className="text-muted text-xs mt-1">{displayName}</p>
         </div>
         <nav className="flex gap-4 text-xs uppercase tracking-widest2">
@@ -154,9 +154,10 @@ export default function ChallengePage() {
       </section>
 
       <section className="card-ledger rounded-md p-5 mb-8">
-        <p className="font-display italic text-parchment text-sm leading-relaxed">
+        <p className="font-display italic text-parchment text-lg leading-relaxed mb-2">
           &ldquo;{quote.text}&rdquo;
         </p>
+        <p className="text-muted text-xs uppercase tracking-widest2">— {quote.author}</p>
       </section>
 
       <section className="card-ledger rounded-md p-6">

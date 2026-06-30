@@ -99,7 +99,7 @@ export default function LoginPage() {
 
   const hero = (
     <div className="text-center mb-10">
-      <p className="vow-row mb-3">Discipline · Sovereignty · Service</p>
+      <p className="vow-row mb-3">Discipline · Self Mastery · Service</p>
       <h1 className="font-display text-5xl text-parchment leading-tight">
         Halfway<br />to God
       </h1>
