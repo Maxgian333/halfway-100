@@ -1,15 +1,19 @@
 'use client';
 
 import { useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { supabase } from '../../lib/supabaseClient';
 
 export default function LoginPage() {
+  const router = useRouter();
+  const [step, setStep] = useState('email'); // 'email' | 'code'
   const [email, setEmail] = useState('');
-  const [sent, setSent] = useState(false);
+  const [code, setCode] = useState('');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
+  const [resendCooldown, setResendCooldown] = useState(0);
 
-  async function handleSubmit(e) {
+  async function requestCode(e) {
     e.preventDefault();
     setError('');
     setLoading(true);
@@ -25,8 +29,39 @@ export default function LoginPage() {
 
     if (authError) {
       setError(authError.message);
+      return;
+    }
+
+    setStep('code');
+    setResendCooldown(30);
+    const timer = setInterval(() => {
+      setResendCooldown((prev) => {
+        if (prev <= 1) {
+          clearInterval(timer);
+          return 0;
+        }
+        return prev - 1;
+      });
+    }, 1000);
+  }
+
+  async function verifyCode(e) {
+    e.preventDefault();
+    setError('');
+    setLoading(true);
+
+    const { error: verifyError } = await supabase.auth.verifyOtp({
+      email,
+      token: code,
+      type: 'email',
+    });
+
+    setLoading(false);
+
+    if (verifyError) {
+      setError(verifyError.message);
     } else {
-      setSent(true);
+      router.replace('/');
     }
   }
 
@@ -44,15 +79,8 @@ export default function LoginPage() {
           </p>
         </div>
 
-        {sent ? (
-          <div className="card-ledger rounded-md p-6 text-center">
-            <p className="text-parchment font-display text-lg mb-1">The gate is open.</p>
-            <p className="text-muted text-sm">
-              Check {email} for a link in. No password to remember — just the one door.
-            </p>
-          </div>
-        ) : (
-          <form onSubmit={handleSubmit} className="card-ledger rounded-md p-6">
+        {step === 'email' && (
+          <form onSubmit={requestCode} className="card-ledger rounded-md p-6">
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">
               Email
             </label>
@@ -64,9 +92,7 @@ export default function LoginPage() {
               placeholder="you@example.com"
               className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
             />
-            {error && (
-              <p className="text-emberBright text-xs mb-4">{error}</p>
-            )}
+            {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
             <button
               type="submit"
               disabled={loading || !email}
@@ -74,6 +100,53 @@ export default function LoginPage() {
             >
               {loading ? 'Sending…' : 'Enter the Challenge'}
             </button>
+          </form>
+        )}
+
+        {step === 'code' && (
+          <form onSubmit={verifyCode} className="card-ledger rounded-md p-6">
+            <p className="text-parchment text-sm mb-1">A code was sent to {email}.</p>
+            <p className="text-muted text-xs mb-5">
+              Open your email, then type the 6-digit code here — no need to tap any link.
+            </p>
+            <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">
+              Code
+            </label>
+            <input
+              type="text"
+              inputMode="numeric"
+              autoComplete="one-time-code"
+              required
+              value={code}
+              onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
+              placeholder="000000"
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-center text-lg font-mono-num tracking-widest"
+            />
+            {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
+            <button
+              type="submit"
+              disabled={loading || code.length !== 6}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-3"
+            >
+              {loading ? 'Checking…' : 'Verify & Enter'}
+            </button>
+            <div className="flex justify-between text-xs">
+              <button
+                type="button"
+                onClick={() => { setStep('email'); setCode(''); setError(''); }}
+                className="text-muted hover:text-parchment"
+              >
+                Use a different email
+              </button>
+              <button
+                type="button"
+                disabled={resendCooldown > 0}
+                onClick={requestCode}
+                className="text-gold hover:text-goldBright disabled:text-muted disabled:cursor-not-allowed"
+              >
+                {resendCooldown > 0 ? `Resend in ${resendCooldown}s` : 'Resend code'}
+              </button>
+            </div>
           </form>
         )}
       </div>

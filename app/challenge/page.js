@@ -114,6 +114,9 @@ export default function ChallengePage() {
           <p className="text-muted text-xs mt-1">{displayName}</p>
         </div>
         <nav className="flex gap-4 text-xs uppercase tracking-widest2">
+          <Link href="/edit-habits" className="text-gold hover:text-goldBright">
+            Edit
+          </Link>
           <Link href="/leaderboard" className="text-gold hover:text-goldBright">
             Roll
           </Link>

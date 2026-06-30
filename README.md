@@ -30,7 +30,17 @@ values between three free accounts.
 4. Go to **Project Settings → API**. You'll need two values from this page
    in a minute: the **Project URL** and the **anon public** key.
 5. Go to **Authentication → URL Configuration**. Leave this open — you'll
-   come back after step 3 to add your real domain here.
+   come back after step 3 to add your real domain here (as both the
+   **Site URL** and in **Redirect URLs** — they're two separate fields).
+6. Go to **Authentication → Email Templates → Magic Link**. By default
+   this template only shows a clickable link, but logging in is now
+   code-based (see "Why a code instead of a link" below), so the actual
+   code needs to be visible in the email. Add `{{ .Token }}` somewhere in
+   the template body, e.g.:
+   ```
+   Your code is {{ .Token }}
+   ```
+   Save it.
 
 ## 2. Put the code on GitHub
 
@@ -71,6 +81,21 @@ Send them the link. Each person:
 3. Sees their count, the Muster Roll, and starts day one.
 
 ---
+
+## Why a code instead of a link
+
+The first version of this used a clickable magic link. It works fine on a
+computer, but breaks in one specific, common situation: a phone, with the
+site added to the Home Screen. iOS gives a Home Screen web app its own,
+separate storage — it doesn't share logins with regular Safari. The email
+link always opens in Safari (or Mail's in-app browser), so even a
+successful login there never reaches the Home Screen icon. From the
+outside it just looks like login "doesn't work."
+
+A typed 6-digit code sidesteps this entirely — the whole login happens in
+the same screen the person is already using, with no jump to another app
+and back. Slightly more typing, but it works the same everywhere: laptop,
+phone in Safari, or phone as a Home Screen icon.
 
 ## How the rules work
 
