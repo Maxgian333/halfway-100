@@ -22,6 +22,12 @@ export default function EditHabitsPage() {
   const [error, setError] = useState('');
   const [saved, setSaved] = useState(false);
 
+  const [newPassword, setNewPassword] = useState('');
+  const [newPasswordConfirm, setNewPasswordConfirm] = useState('');
+  const [passwordError, setPasswordError] = useState('');
+  const [passwordSaved, setPasswordSaved] = useState(false);
+  const [savingPassword, setSavingPassword] = useState(false);
+
   const today = localDateString();
 
   useEffect(() => {
@@ -120,6 +126,19 @@ export default function EditHabitsPage() {
 
     if (dbError) { setError(dbError.message); }
     else { setTasks(cleanTasks); setSaved(true); }
+  }
+
+  async function handleChangePassword(e) {
+    e.preventDefault();
+    setPasswordError('');
+    setPasswordSaved(false);
+    if (newPassword.length < 8) { setPasswordError('Password must be at least 8 characters.'); return; }
+    if (newPassword !== newPasswordConfirm) { setPasswordError('Passwords do not match.'); return; }
+    setSavingPassword(true);
+    const { error: pwError } = await supabase.auth.updateUser({ password: newPassword });
+    setSavingPassword(false);
+    if (pwError) { setPasswordError(pwError.message); }
+    else { setPasswordSaved(true); setNewPassword(''); setNewPasswordConfirm(''); }
   }
 
   if (loading) {
@@ -234,6 +253,30 @@ export default function EditHabitsPage() {
             </button>
           )}
         </div>
+
+        {/* ── Change password ── */}
+        <form onSubmit={handleChangePassword} className="card-ledger rounded-md p-6 mb-6">
+          <p className="text-xs uppercase tracking-widest2 text-gold mb-1">Password</p>
+          <p className="text-muted text-xs italic font-display mb-4">
+            Set or update your password. Use this to log in from any device without needing a code.
+          </p>
+          <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">New password</label>
+          <input type="password" value={newPassword}
+            onChange={(e) => { setNewPassword(e.target.value); setPasswordSaved(false); }}
+            placeholder="At least 8 characters"
+            className="input-ledger w-full rounded-sm px-3 py-2 mb-3 text-sm" />
+          <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Confirm password</label>
+          <input type="password" value={newPasswordConfirm}
+            onChange={(e) => { setNewPasswordConfirm(e.target.value); setPasswordSaved(false); }}
+            placeholder="Same again"
+            className="input-ledger w-full rounded-sm px-3 py-2 mb-4 text-sm" />
+          {passwordError && <p className="text-emberBright text-xs mb-3">{passwordError}</p>}
+          {passwordSaved && <p className="text-gold text-xs uppercase tracking-widest2 mb-3">Password updated.</p>}
+          <button type="submit" disabled={savingPassword || !newPassword || !newPasswordConfirm}
+            className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2">
+            {savingPassword ? 'Saving…' : 'Set Password'}
+          </button>
+        </form>
 
         {error && <p className="text-emberBright text-xs mb-4 text-center">{error}</p>}
         {saved && (

@@ -6,7 +6,7 @@ import { supabase } from '../../lib/supabaseClient';
 
 export default function LoginPage() {
   const router = useRouter();
-  // mode: 'password' | 'code-email' | 'code-verify' | 'signup'
+  // mode: 'password' | 'code-email' | 'code-verify' | 'signup' | 'forgot' | 'forgot-sent'
   const [mode, setMode] = useState('password');
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
@@ -18,60 +18,52 @@ export default function LoginPage() {
 
   function clearErrors() { setError(''); }
 
-  // --- Password sign-in ---
   async function handlePasswordSignIn(e) {
     e.preventDefault();
     clearErrors();
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithPassword({ email, password });
     setLoading(false);
-    if (authError) {
-      setError(authError.message);
-    } else {
-      router.replace('/');
-    }
+    if (authError) { setError(authError.message); }
+    else { router.replace('/'); }
   }
 
-  // --- Sign up with password (first-time users) ---
   async function handleSignUp(e) {
     e.preventDefault();
     clearErrors();
-    if (password !== passwordConfirm) {
-      setError('Passwords do not match.');
-      return;
-    }
-    if (password.length < 8) {
-      setError('Password must be at least 8 characters.');
-      return;
-    }
+    if (password !== passwordConfirm) { setError('Passwords do not match.'); return; }
+    if (password.length < 8) { setError('Password must be at least 8 characters.'); return; }
     setLoading(true);
     const { error: authError } = await supabase.auth.signUp({ email, password });
     setLoading(false);
     if (authError) {
       setError(authError.message);
     } else {
-      // Auto sign them in after signup
       const { error: signInError } = await supabase.auth.signInWithPassword({ email, password });
-      if (signInError) {
-        setError('Account created — now sign in below.');
-        setMode('password');
-      } else {
-        router.replace('/');
-      }
+      if (signInError) { setError('Account created — now sign in below.'); setMode('password'); }
+      else { router.replace('/'); }
     }
   }
 
-  // --- Code flow (fallback / existing accounts without password) ---
+  async function handleForgotPassword(e) {
+    e.preventDefault();
+    clearErrors();
+    setLoading(true);
+    const { error: authError } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: `${typeof window !== 'undefined' ? window.location.origin : ''}/reset-password`,
+    });
+    setLoading(false);
+    if (authError) { setError(authError.message); }
+    else { setMode('forgot-sent'); }
+  }
+
   async function requestCode(e) {
     if (e && e.preventDefault) e.preventDefault();
     clearErrors();
     setLoading(true);
     const { error: authError } = await supabase.auth.signInWithOtp({ email });
     setLoading(false);
-    if (authError) {
-      setError(authError.message);
-      return;
-    }
+    if (authError) { setError(authError.message); return; }
     setMode('code-verify');
     setResendCooldown(30);
     const timer = setInterval(() => {
@@ -86,15 +78,10 @@ export default function LoginPage() {
     e.preventDefault();
     clearErrors();
     setLoading(true);
-    const { error: verifyError } = await supabase.auth.verifyOtp({
-      email, token: code, type: 'email',
-    });
+    const { error: verifyError } = await supabase.auth.verifyOtp({ email, token: code, type: 'email' });
     setLoading(false);
-    if (verifyError) {
-      setError(verifyError.message);
-    } else {
-      router.replace('/');
-    }
+    if (verifyError) { setError(verifyError.message); }
+    else { router.replace('/'); }
   }
 
   const hero = (
@@ -119,24 +106,25 @@ export default function LoginPage() {
         {mode === 'password' && (
           <form onSubmit={handlePasswordSignIn} className="card-ledger rounded-md p-6">
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Email</label>
-            <input
-              type="email" required value={email}
+            <input type="email" required value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Password</label>
-            <input
-              type="password" required value={password}
+            <input type="password" required value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="••••••••"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-1 text-sm" />
+            <div className="text-right mb-4">
+              <button type="button"
+                onClick={() => { clearErrors(); setMode('forgot'); }}
+                className="text-muted text-xs hover:text-gold">
+                Forgot password?
+              </button>
+            </div>
             {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
-            <button
-              type="submit" disabled={loading || !email || !password}
-              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4"
-            >
+            <button type="submit" disabled={loading || !email || !password}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4">
               {loading ? 'Entering…' : 'Enter the Challenge'}
             </button>
             <div className="flex justify-between text-xs">
@@ -152,36 +140,66 @@ export default function LoginPage() {
           </form>
         )}
 
+        {/* ── Forgot password ── */}
+        {mode === 'forgot' && (
+          <form onSubmit={handleForgotPassword} className="card-ledger rounded-md p-6">
+            <p className="text-parchment font-display text-lg mb-2">Reset your password</p>
+            <p className="text-muted text-xs mb-4">
+              Enter your email and we'll send a reset link. Use it to set a new password.
+            </p>
+            <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Email</label>
+            <input type="email" required value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              placeholder="you@example.com"
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
+            {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
+            <button type="submit" disabled={loading || !email}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4">
+              {loading ? 'Sending…' : 'Send Reset Link'}
+            </button>
+            <button type="button" onClick={() => { clearErrors(); setMode('password'); }}
+              className="text-muted text-xs hover:text-parchment">
+              ← Back to sign in
+            </button>
+          </form>
+        )}
+
+        {/* ── Forgot password sent ── */}
+        {mode === 'forgot-sent' && (
+          <div className="card-ledger rounded-md p-6 text-center">
+            <p className="text-parchment font-display text-lg mb-2">Check your email.</p>
+            <p className="text-muted text-sm mb-6">
+              A reset link was sent to {email}. Click it to set a new password — it expires in 1 hour.
+            </p>
+            <button type="button" onClick={() => { clearErrors(); setMode('password'); }}
+              className="text-gold text-xs uppercase tracking-widest2 hover:text-goldBright">
+              ← Back to sign in
+            </button>
+          </div>
+        )}
+
         {/* ── Sign up ── */}
         {mode === 'signup' && (
           <form onSubmit={handleSignUp} className="card-ledger rounded-md p-6">
             <p className="text-parchment font-display text-lg mb-4">Create your account</p>
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Email</label>
-            <input
-              type="email" required value={email}
+            <input type="email" required value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Password</label>
-            <input
-              type="password" required value={password}
+            <input type="password" required value={password}
               onChange={(e) => setPassword(e.target.value)}
               placeholder="At least 8 characters"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Confirm password</label>
-            <input
-              type="password" required value={passwordConfirm}
+            <input type="password" required value={passwordConfirm}
               onChange={(e) => setPasswordConfirm(e.target.value)}
               placeholder="Same again"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
             {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
-            <button
-              type="submit" disabled={loading || !email || !password || !passwordConfirm}
-              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4"
-            >
+            <button type="submit" disabled={loading || !email || !password || !passwordConfirm}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4">
               {loading ? 'Creating…' : 'Create Account & Enter'}
             </button>
             <button type="button" onClick={() => { clearErrors(); setMode('password'); }}
@@ -198,17 +216,13 @@ export default function LoginPage() {
               Enter your email and we'll send a 6-digit code — no password needed.
             </p>
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Email</label>
-            <input
-              type="email" required value={email}
+            <input type="email" required value={email}
               onChange={(e) => setEmail(e.target.value)}
               placeholder="you@example.com"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-sm" />
             {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
-            <button
-              type="submit" disabled={loading || !email}
-              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4"
-            >
+            <button type="submit" disabled={loading || !email}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-4">
               {loading ? 'Sending…' : 'Send Code'}
             </button>
             <button type="button" onClick={() => { clearErrors(); setMode('password'); }}
@@ -224,18 +238,14 @@ export default function LoginPage() {
             <p className="text-parchment text-sm mb-1">Code sent to {email}.</p>
             <p className="text-muted text-xs mb-5">Type the 6-digit number from your email — no link to click.</p>
             <label className="block text-xs uppercase tracking-widest2 text-muted mb-2">Code</label>
-            <input
-              type="text" inputMode="numeric" autoComplete="one-time-code" required
+            <input type="text" inputMode="numeric" autoComplete="one-time-code" required
               value={code}
               onChange={(e) => setCode(e.target.value.replace(/\D/g, '').slice(0, 6))}
               placeholder="000000"
-              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-center text-lg font-mono-num tracking-widest"
-            />
+              className="input-ledger w-full rounded-sm px-3 py-2.5 mb-4 text-center text-lg font-mono-num tracking-widest" />
             {error && <p className="text-emberBright text-xs mb-4">{error}</p>}
-            <button
-              type="submit" disabled={loading || code.length !== 6}
-              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-3"
-            >
+            <button type="submit" disabled={loading || code.length !== 6}
+              className="btn-primary w-full rounded-sm py-2.5 text-sm uppercase tracking-widest2 mb-3">
               {loading ? 'Checking…' : 'Verify & Enter'}
             </button>
             <div className="flex justify-between text-xs">
